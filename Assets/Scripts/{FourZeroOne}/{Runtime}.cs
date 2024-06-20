@@ -40,6 +40,10 @@ namespace FourZeroOne.Runtime
         public ICeasableTask<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj
         {
             Assert(_operationStack.Check(out var node) && node.Value is Core.Tokens.PerformAction<R> pToken);
+            _operationStack = (node with
+            {
+                Value = action,
+            }).AsSome();
 
         }
         public ICeasableTask<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj
@@ -108,6 +112,7 @@ namespace FourZeroOne.Runtime
                 _operationStack = op.AsSome();
                 var argTokens = op.Value.ArgTokens;
                 
+                //DEV - each operation node should have a IOption<ControlledTask<Resolved>> attached that resolves upon resolution.
                 if (argTokens.Length == 0 || (_resolutionStack.CheckNone(out var node) && node.Depth == op.Depth + 1))
                 {
                     var argPass = new Resolved[argTokens.Length];
