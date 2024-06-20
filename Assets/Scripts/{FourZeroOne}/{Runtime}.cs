@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Perfection;
 using ControlledTasks;
 using System.Threading.Tasks;
+using static UnityEngine.Debug;
 #nullable enable
 namespace FourZeroOne.Runtime
 {
@@ -29,14 +30,17 @@ namespace FourZeroOne.Runtime
             _frameStack = new None<LinkedStack<Frame>>();
             AddFrame(program, new None<Resolved>());
         }
-        public async Task<ResObj> Run()
+        public async Task<Resolved> Run()
         {
-
+            var runThread = new ControlledTask<Resolved>();
+            RunInternal(runThread);
+            return await runThread;
         }
         public State GetState() => _currentState;
         public ICeasableTask<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj
         {
-            throw new System.NotImplementedException();
+            Assert(_operationStack.Check(out var node) && node.Value is Core.Tokens.PerformAction<R> pToken);
+
         }
         public ICeasableTask<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj
         {
@@ -91,7 +95,7 @@ namespace FourZeroOne.Runtime
             }
         }
 
-        private async void RunInternal()
+        private async void RunInternal(ControlledTask<Resolved> masterThread)
         {
             while (_operationStack.Check(out var opTBD))
             {
@@ -123,8 +127,9 @@ namespace FourZeroOne.Runtime
 
                 PushToStack(ref _operationStack, op.Depth + 1, op.Value.ArgTokens.AsMutList().Reversed());
             }
-            UnityEngine.Debug.Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
-            _masterThread.Resolve(finalNode.Value);
+
+            Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
+            masterThread.Resolve(finalNode.Value);
         }
         private void AddFrame(IToken token, IOption<Resolved> resolution)
         {
@@ -165,7 +170,6 @@ namespace FourZeroOne.Runtime
         }
 
         private State _currentState;
-        private ControlledTask<Resolved> _masterThread;
         private ICeasableTask<Resolved> _evalThread;
         private IOption<LinkedStack<Frame>> _frameStack;
         private IOption<LinkedStack<IToken>> _operationStack;
