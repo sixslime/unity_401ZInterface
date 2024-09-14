@@ -32,7 +32,7 @@ namespace FourZeroOne.Token
         {
             _argTokens = args;
         }
-        public Token(IEnumerable<Unsafe.IToken> args) : this(args.ToList().ToArray()) { }
+        public Token(IEnumerable<Unsafe.IToken> args) : this(args.AsList().ToArray()) { }
         public abstract ICeasableTask<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] args);
         public ICeasableTask<IOption<ResObj>> ResolveUnsafe(IRuntime runtime, IOption<ResObj>[] args) { return Resolve(runtime, args); }
         private Unsafe.IToken[] _argTokens;
