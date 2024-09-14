@@ -27,14 +27,19 @@ namespace FourZeroOne.Runtime
             _operationStack = new LinkedStack<IToken>(program).AsSome();
             _resolutionStack = new None<LinkedStack<Resolved>>();
             _evalThread = ControlledTask.FromResult(new None<ResObj>());
+            _runThread = ControlledTask.FromResult((Resolved)(new None<ResObj>()));
             _frameStack = new None<LinkedStack<Frame>>();
             AddFrame(program, new None<Resolved>());
         }
         public async Task<Resolved> Run()
         {
-            var runThread = new ControlledTask<Resolved>();
-            RunInternal(runThread);
-            return await runThread;
+            _runThread = new ControlledTask<Resolved>();
+            RunInternal();
+            return await _runThread;
+        }
+        private void ResolveRun(Resolved resolution)
+        {
+            _runThread.Resolve(resolution);
         }
         public State GetState() => _currentState;
         public ICeasableTask<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj
@@ -99,7 +104,7 @@ namespace FourZeroOne.Runtime
             }
         }
 
-        private async void RunInternal(ControlledTask<Resolved> masterThread)
+        private async void RunInternal()
         {
             while (_operationStack.Check(out var opTBD))
             {
@@ -134,7 +139,7 @@ namespace FourZeroOne.Runtime
             }
 
             Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
-            masterThread.Resolve(finalNode.Value);
+            ResolveRun(finalNode.Value);
         }
         private void AddFrame(IToken token, IOption<Resolved> resolution)
         {
@@ -176,6 +181,7 @@ namespace FourZeroOne.Runtime
 
         private State _currentState;
         private ICeasableTask<Resolved> _evalThread;
+        private ControlledTask<Resolved> _runThread;
         private IOption<LinkedStack<Frame>> _frameStack;
         private IOption<LinkedStack<IToken>> _operationStack;
         private IOption<LinkedStack<Resolved>> _resolutionStack;
