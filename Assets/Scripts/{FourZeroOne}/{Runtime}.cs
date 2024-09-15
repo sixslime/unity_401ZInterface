@@ -34,7 +34,7 @@ namespace FourZeroOne.Runtime
         public async Task<Resolved> Run()
         {
             _runThread = new ControlledTask<Resolved>();
-            RunInternal();
+            StartEvalThread();
             return await _runThread;
         }
         private void ResolveRun(Resolved resolution)
@@ -49,11 +49,17 @@ namespace FourZeroOne.Runtime
             {
                 throw new System.Exception("[FrameSaving Runtime] PerformAction() called when a PerformAction token was not at the top of the operation stack.");
             }
+            // directly replaces the PerformAction token with it's stored Action token in the operation stack.
             _operationStack = (node with
             {
                 Value = pToken.Arg1
             }).AsSome();
-            return pToken.Arg1.R
+            var thisThread = _evalThread;
+            StartEvalThread();
+            thisThread.Cease();
+            // This thread should be ceased, as it is part of the eval thread.
+
+            throw new System.Exception("Fuck!");
         }
         public ICeasableTask<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj
         {
@@ -73,7 +79,7 @@ namespace FourZeroOne.Runtime
             _currentState = frame.State;
             _frameStack = frameStack.AsSome();
             _evalThread.Cease();
-            RunInternal();
+            StartEvalThread();
         }
 
         protected record Frame
@@ -108,7 +114,7 @@ namespace FourZeroOne.Runtime
             }
         }
 
-        private async void RunInternal()
+        private async void StartEvalThread()
         {
             while (_operationStack.Check(out var unruledOperationNode))
             {
