@@ -245,9 +245,9 @@ namespace FourZeroOne.Core.Tokens
     {
         public PerformAction(IToken<r.Action<R>> a) : base(a) { }
 
-        protected override async ICeasableTask<IOption<R>> Evaluate(IRuntime runtime, IOption<r.Action<R>> in1)
+        protected override ICeasableTask<IOption<R>> Evaluate(IRuntime runtime, IOption<r.Action<R>> in1)
         {
-            return in1.Check(out var action) ? await runtime.PerformAction(action.Token) : new None<R>();
+            return in1.Check(out var action) ? runtime.PerformAction(action.Token) : ControlledTask.FromResult(new None<R>());
         }
     }
     public record SubEnvironment<ROut> : PureFunction<Resolution.IMulti<ResObj>, ROut, ROut>

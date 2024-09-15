@@ -44,12 +44,16 @@ namespace FourZeroOne.Runtime
         public State GetState() => _currentState;
         public ICeasableTask<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj
         {
-            Assert(_operationStack.Check(out var node) && node.Value is Core.Tokens.PerformAction<R> pToken);
+            var node = _operationStack.Unwrap();
+            if (node.Value is not Core.Tokens.PerformAction<R> pToken)
+            {
+                throw new System.Exception("[FrameSaving Runtime] PerformAction() called when a PerformAction token was not at the top of the operation stack.");
+            }
             _operationStack = (node with
             {
-                Value = action,
+                Value = pToken.Arg1
             }).AsSome();
-
+            return pToken.Arg1.R
         }
         public ICeasableTask<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj
         {
@@ -106,36 +110,36 @@ namespace FourZeroOne.Runtime
 
         private async void RunInternal()
         {
-            while (_operationStack.Check(out var opTBD))
+            while (_operationStack.Check(out var unruledOperationNode))
             {
-                var op = opTBD with
+                var operationNode = unruledOperationNode with
                 {
-                    Value = ApplyRules(opTBD.Value, _currentState.Rules.Elements, out var appliedRules)
+                    Value = ApplyRules(unruledOperationNode.Value, _currentState.Rules.Elements, out var appliedRules)
                 };
                 RecieveRuleSteps(appliedRules);
-                RecieveToken(op.Value);
-                _operationStack = op.AsSome();
-                var argTokens = op.Value.ArgTokens;
+                RecieveToken(operationNode.Value);
+                _operationStack = operationNode.AsSome();
+                int argAmount = operationNode.Value.ArgTokens.Length;
                 
                 //DEV - each operation node should have a IOption<ControlledTask<Resolved>> attached that resolves upon resolution.
-                if (argTokens.Length == 0 || (_resolutionStack.CheckNone(out var node) && node.Depth == op.Depth + 1))
+                if (argAmount == 0 || (_resolutionStack.Check(out var resolutionNode) && resolutionNode.Depth == operationNode.Depth + 1))
                 {
-                    var argPass = new Resolved[argTokens.Length];
-                    for (int i = argPass.Length; i >= 0; i--)
+                    var argPass = new Resolved[argAmount];
+                    for (int i = argAmount; i >= 0; i--)
                     { 
                         argPass[i] = PopFromStack(ref _resolutionStack).Value;
                     }
-                    _evalThread = op.Value.ResolveUnsafe(this, argPass);
+                    _evalThread = operationNode.Value.ResolveUnsafe(this, argPass);
                     var resolution = await _evalThread;
                     RecieveResolution(resolution);
                     if (resolution.Check(out var notNolla)) _currentState = _currentState.WithResolution(notNolla);
-                    PushToStack(ref _resolutionStack, op.Depth, resolution);
+                    PushToStack(ref _resolutionStack, operationNode.Depth, resolution);
                     PopFromStack(ref _operationStack);
-                    AddFrame(op.Value, resolution.AsSome());
-                    continue;
+                    AddFrame(operationNode.Value, resolution.AsSome());
+                } else
+                {
+                    PushToStack(ref _operationStack, operationNode.Depth + 1, operationNode.Value.ArgTokens.AsMutList().Reversed());
                 }
-
-                PushToStack(ref _operationStack, op.Depth + 1, op.Value.ArgTokens.AsMutList().Reversed());
             }
 
             Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
@@ -159,7 +163,7 @@ namespace FourZeroOne.Runtime
         }
         private static LinkedStack<T> PopFromStack<T>(ref IOption<LinkedStack<T>> stack)
         {
-            var o = stack.Check(out var popped) ? popped : throw new System.Exception("[Runtime] tried to pop from empty LinkedStack.");
+            var o = stack.Check(out var popped) ? popped : throw new System.Exception("[FrameSaving Runtime] tried to pop from empty LinkedStack.");
             if (stack.Check(out var node)) stack = node.Link;
             return o;
         }
