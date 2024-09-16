@@ -38,11 +38,11 @@ namespace FourZeroOne.Core.Tokens
         }
         namespace Hex
         {
-            public sealed record AllHexes : Infallible<r.Multi<rb.Hex>>
+            public sealed record AllHexes : Value<r.Multi<rb.Hex>>
             {
-                protected override IOption<r.Multi<rb.Hex>> InfallibleResolve(IRuntime runtime)
+                protected override ICeasableTask<IOption<r.Multi<rb.Hex>>> Evaluate(IRuntime runtime)
                 {
-                    return new r.Multi<rb.Hex>() { Values = runtime.GetState().Board.Hexes }.AsSome();
+                    return ControlledTask.FromResult(new r.Multi<rb.Hex>() { Values = runtime.GetState().Board.Hexes }.AsSome());
                 }
             }
             public sealed record AtPresent : PresentStateGetter<rb.Hex>
@@ -57,11 +57,11 @@ namespace FourZeroOne.Core.Tokens
         }
         namespace Unit
         {
-            public sealed record AllUnits : Infallible<r.Multi<rb.Unit>>
+            public sealed record AllUnits : Value<r.Multi<rb.Unit>>
             {
-                protected override IOption<r.Multi<rb.Unit>> InfallibleResolve(IRuntime runtime)
+                protected override ICeasableTask<IOption<r.Multi<rb.Unit>>> Evaluate(IRuntime runtime)
                 {
-                    return new r.Multi<rb.Unit>() { Values = runtime.GetState().Board.Units }.AsSome();
+                    return ControlledTask.FromResult(new r.Multi<rb.Unit>() { Values = runtime.GetState().Board.Units }.AsSome());
                 }
             }
             public sealed record AtPresent : PresentStateGetter<rb.Unit>
@@ -91,11 +91,11 @@ namespace FourZeroOne.Core.Tokens
         }
         namespace Player
         {
-            public sealed record AllPlayers : Infallible<r.Multi<rb.Player>>
+            public sealed record AllPlayers : Value<r.Multi<rb.Player>>
             {
-                protected override IOption<r.Multi<rb.Player>> InfallibleResolve(IRuntime runtime)
+                protected override ICeasableTask<IOption<r.Multi<rb.Player>>> Evaluate(IRuntime runtime)
                 {
-                    return new r.Multi<rb.Player>() { Values = runtime.GetState().Board.Players }.AsSome();
+                    return ControlledTask.FromResult(new r.Multi<rb.Player>() { Values = runtime.GetState().Board.Players }.AsSome());
                 }
             }
             public sealed record AtPresent : PresentStateGetter<rb.Player>
@@ -111,10 +111,9 @@ namespace FourZeroOne.Core.Tokens
         {
             public sealed record One<R> : Function<Resolution.IMulti<R>, R> where R : class, ResObj
             {
-                public override bool IsFallibleFunction => true;
                 public One(IToken<Resolution.IMulti<R>> from) : base(from) { }
 
-                protected async override ICeasableTask<IOption<R>> Evaluate(IRuntime runtime, IOption<Resolution.IMulti<R>> fromOpt)
+                protected override ICeasableTask<IOption<R>> Evaluate(IRuntime runtime, IOption<Resolution.IMulti<R>> fromOpt)
                 {
                     if (fromOpt.CheckNone(out var from)) return new None<R>();
                     if (await runtime.Input.ReadSelection(from.Values, 1) is not IOption<IEnumerable<R>> selOpt) return null;
