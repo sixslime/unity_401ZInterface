@@ -75,7 +75,7 @@ namespace FourZeroOne.Token
         protected PureValue() : base() { }
         protected sealed override ICeasableFlow<IOption<R>> Evaluate(IRuntime _)
         {
-            return ControlledFlow.FromResult(EvaluatePure().AsSome());
+            return ControlledFlow.Resolved(EvaluatePure().AsSome());
         }
         protected abstract R EvaluatePure();
     }
@@ -180,7 +180,7 @@ namespace FourZeroOne.Token
         {
             IOption<ROut> o = (in1.CheckNone(out var a)) ? new None<ROut>() :
                 EvaluatePure(a).AsSome();
-            return ControlledFlow.FromResult(o);
+            return ControlledFlow.Resolved(o);
         }
     }
     public abstract record PureFunction<RArg1, RArg2, ROut> : Function<RArg1, RArg2, ROut>
@@ -194,7 +194,7 @@ namespace FourZeroOne.Token
         {
             IOption<ROut> o = (in1.CheckNone(out var a) || in2.CheckNone(out var b)) ? new None<ROut>() :
                 EvaluatePure(a, b).AsSome();
-            return ControlledFlow.FromResult(o);
+            return ControlledFlow.Resolved(o);
         }
     }
     public abstract record PureFunction<RArg1, RArg2, RArg3, ROut> : Function<RArg1, RArg2, RArg3, ROut>
@@ -210,7 +210,7 @@ namespace FourZeroOne.Token
         {
             IOption<ROut> o = (in1.CheckNone(out var a) || in2.CheckNone(out var b) || in3.CheckNone(out var c)) ? new None<ROut>() :
                 EvaluatePure(a, b, c).AsSome();
-            return ControlledFlow.FromResult(o);
+            return ControlledFlow.Resolved(o);
         }
     }
     public abstract record PureCombiner<RArg, ROut> : Combiner<RArg, ROut>
@@ -220,7 +220,7 @@ namespace FourZeroOne.Token
 
         protected abstract ROut EvaluatePure(IEnumerable<RArg> inputs);
         protected PureCombiner(IEnumerable<IToken<RArg>> tokens) : base(tokens) { }
-        protected sealed override ICeasableFlow<IOption<ROut>> Evaluate(IRuntime _, IEnumerable<IOption<RArg>> inputs) => ControlledFlow.FromResult(EvaluatePure(inputs.Filter(x => x.IsSome()).Map(x => x.Unwrap())).AsSome());
+        protected sealed override ICeasableFlow<IOption<ROut>> Evaluate(IRuntime _, IEnumerable<IOption<RArg>> inputs) => ControlledFlow.Resolved(EvaluatePure(inputs.Filter(x => x.IsSome()).Map(x => x.Unwrap())).AsSome());
     }
     // ----
     #endregion
@@ -232,7 +232,7 @@ namespace FourZeroOne.Token
     {
         public PresentStateGetter(IToken<RSource> source) : base(source) { }
         protected abstract PIndexedSet<int, RSource> GetStatePSet(IRuntime runtime);
-        protected sealed override ICeasableFlow<IOption<RSource>> Evaluate(IRuntime runtime, IOption<RSource> in1) { return ControlledFlow.FromResult(in1.RemapAs(x => GetStatePSet(runtime)[x.UUID])); }
+        protected sealed override ICeasableFlow<IOption<RSource>> Evaluate(IRuntime runtime, IOption<RSource> in1) { return ControlledFlow.Resolved(in1.RemapAs(x => GetStatePSet(runtime)[x.UUID])); }
     }
 }
 namespace FourZeroOne.Token.Unsafe

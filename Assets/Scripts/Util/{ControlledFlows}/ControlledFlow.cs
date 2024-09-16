@@ -5,6 +5,7 @@ using MC = MorseCode.ITask;
 
 // Made with duct tape and dreams.
 
+#nullable enable
 namespace ControlledFlows
 {
     //make ControlledFlow.FromResult
@@ -18,7 +19,7 @@ namespace ControlledFlows
             _completedTask.Awaiter.OnCompleted(() => { });
             _completedTask.Resolve();
         }
-        public static ControlledFlow<TResult> FromResult<TResult>(TResult result)
+        public static ControlledFlow<TResult> Resolved<TResult>(TResult result)
         {
             var o = new ControlledFlow<TResult>();
             o.Resolve(result);

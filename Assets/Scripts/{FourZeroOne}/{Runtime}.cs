@@ -26,8 +26,8 @@ namespace FourZeroOne.Runtime
             _currentState = startingState;
             _operationStack = new LinkedStack<IToken>(program).AsSome();
             _resolutionStack = new None<LinkedStack<Resolved>>();
-            _evalThread = ControlledFlow.FromResult(new None<ResObj>());
-            _runThread = ControlledFlow.FromResult((Resolved)(new None<ResObj>()));
+            _evalThread = ControlledFlow.Resolved(new None<ResObj>());
+            _runThread = ControlledFlow.Resolved((Resolved)(new None<ResObj>()));
             _frameStack = new None<LinkedStack<Frame>>();
             AddFrame(program, new None<Resolved>());
         }

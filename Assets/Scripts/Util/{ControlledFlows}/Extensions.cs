@@ -4,11 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ControlledFlows;
-public static class Extensions
+#nullable enable
+namespace ControlledFlows
 {
-    public static TransformedFlow<I, R> WithTransformedResult<I, R>(this ICeasableFlow<I> inputFlow, Func<I, R> transform)
+    public static class Extensions
     {
-        return new(inputFlow, transform);
+        public static TransformedFlow<I, R> WithTransformedResult<I, R>(this ICeasableFlow<I> inputFlow, Func<I, R> transform)
+        {
+            return new(inputFlow, transform);
+        }
     }
 }

@@ -42,7 +42,7 @@ namespace FourZeroOne.Core.Tokens
             {
                 protected override ICeasableFlow<IOption<r.Multi<rb.Hex>>> Evaluate(IRuntime runtime)
                 {
-                    return ControlledFlow.FromResult(new r.Multi<rb.Hex>() { Values = runtime.GetState().Board.Hexes }.AsSome());
+                    return ControlledFlow.Resolved(new r.Multi<rb.Hex>() { Values = runtime.GetState().Board.Hexes }.AsSome());
                 }
             }
             public sealed record AtPresent : PresentStateGetter<rb.Hex>
@@ -61,7 +61,7 @@ namespace FourZeroOne.Core.Tokens
             {
                 protected override ICeasableFlow<IOption<r.Multi<rb.Unit>>> Evaluate(IRuntime runtime)
                 {
-                    return ControlledFlow.FromResult(new r.Multi<rb.Unit>() { Values = runtime.GetState().Board.Units }.AsSome());
+                    return ControlledFlow.Resolved(new r.Multi<rb.Unit>() { Values = runtime.GetState().Board.Units }.AsSome());
                 }
             }
             public sealed record AtPresent : PresentStateGetter<rb.Unit>
@@ -95,7 +95,7 @@ namespace FourZeroOne.Core.Tokens
             {
                 protected override ICeasableFlow<IOption<r.Multi<rb.Player>>> Evaluate(IRuntime runtime)
                 {
-                    return ControlledFlow.FromResult(new r.Multi<rb.Player>() { Values = runtime.GetState().Board.Players }.AsSome());
+                    return ControlledFlow.Resolved(new r.Multi<rb.Player>() { Values = runtime.GetState().Board.Players }.AsSome());
                 }
             }
             public sealed record AtPresent : PresentStateGetter<rb.Player>
@@ -115,23 +115,24 @@ namespace FourZeroOne.Core.Tokens
 
                 protected override ICeasableFlow<IOption<R>> Evaluate(IRuntime runtime, IOption<Resolution.IMulti<R>> fromOpt)
                 {
-                    if (fromOpt.CheckNone(out var from)) return new None<R>();
-                    if (await runtime.Input.ReadSelection(from.Values, 1) is not IOption<IEnumerable<R>> selOpt) return null;
-                    return (selOpt.Check(out var sel)) ? sel.First().AsSome() : new None<R>();
+                    return fromOpt.Check(out var from)
+                        ? runtime.ReadSelection(from.Values, 1)
+                            .WithTransformedResult(selection => selection.RemapAs(x => x.First().NullToNone()).Press())
+                        : ControlledFlow.Resolved(new None<R>());
                 }
             }
 
             //make range instead of single int count
             public sealed record Multiple<R> : Function<Resolution.IMulti<R>, r.Number, r.Multi<R>> where R : class, ResObj
             {
-                public override bool IsFallibleFunction => true;
                 public Multiple(IToken<Resolution.IMulti<R>> from, IToken<r.Number> count) : base(from, count) { }
 
-                protected override async ICeasableFlow<IOption<r.Multi<R>>> Evaluate(IRuntime runtime, IOption<Resolution.IMulti<R>> fromOpt, IOption<r.Number> countOpt)
+                protected override ICeasableFlow<IOption<r.Multi<R>>> Evaluate(IRuntime runtime, IOption<Resolution.IMulti<R>> fromOpt, IOption<r.Number> countOpt)
                 {
-                    if (fromOpt.CheckNone(out var from) || countOpt.CheckNone(out var count)) return new None<r.Multi<R>>();
-                    if (await runtime.Input.ReadSelection(from.Values, count.Value) is not IOption<IEnumerable<R>> selOpt) return null;
-                    return selOpt.RemapAs(v => new r.Multi<R>() { Values = v });
+                    return (fromOpt.Check(out var from) && countOpt.Check(out var count))
+                        ? runtime.ReadSelection(from.Values, count.Value)
+                            .WithTransformedResult(selection => selection.RemapAs(v => new r.Multi<R>() { Values = v }))
+                        : ControlledFlow.Resolved(new None<r.Multi<R>>());
                 }
             }
         }
@@ -246,7 +247,7 @@ namespace FourZeroOne.Core.Tokens
 
         protected override ICeasableFlow<IOption<R>> Evaluate(IRuntime runtime, IOption<r.Action<R>> in1)
         {
-            return in1.Check(out var action) ? runtime.PerformAction(action.Token) : ControlledFlow.FromResult(new None<R>());
+            return in1.Check(out var action) ? runtime.PerformAction(action.Token) : ControlledFlow.Resolved(new None<R>());
         }
     }
     public record SubEnvironment<ROut> : PureFunction<Resolution.IMulti<ResObj>, ROut, ROut>
@@ -299,7 +300,7 @@ namespace FourZeroOne.Core.Tokens
         public IfElse(IToken<r.Bool> condition, IToken<r.Action<R>> positive, IToken<r.Action<R>> negative) : base(condition, positive, negative) { }
         protected override ICeasableFlow<IOption<r.Action<R>>> Evaluate(IRuntime runtime, IOption<r.Bool> in1, IOption<r.Action<R>> in2, IOption<r.Action<R>> in3)
         {
-            return ControlledFlow.FromResult( in1.RemapAs(x => x.IsTrue ? in2 : in3).Press() );
+            return ControlledFlow.Resolved( in1.RemapAs(x => x.IsTrue ? in2 : in3).Press() );
         }
     }
     public sealed record Variable<R> : Token<r.DeclareVariable<R>> where R : class, ResObj
@@ -311,7 +312,7 @@ namespace FourZeroOne.Core.Tokens
         public override ICeasableFlow<IOption<r.DeclareVariable<R>>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
         {
             var refObject = (IOption<R>)args[0];
-            return ControlledFlow.FromResult(refObject.RemapAs(x => new r.DeclareVariable<R>(_identifier) { Object = refObject }));
+            return ControlledFlow.Resolved(refObject.RemapAs(x => new r.DeclareVariable<R>(_identifier) { Object = refObject }));
         }
 
         private readonly VariableIdentifier<R> _identifier;
@@ -346,7 +347,7 @@ namespace FourZeroOne.Core.Tokens
     public sealed record Nolla<R> : Value<R> where R : class, ResObj
     {
         public Nolla() { }
-        protected override ICeasableFlow<IOption<R>> Evaluate(IRuntime _) { return ControlledFlow.FromResult(new None<R>()); }
+        protected override ICeasableFlow<IOption<R>> Evaluate(IRuntime _) { return ControlledFlow.Resolved(new None<R>()); }
     }
     public sealed record Reference<R> : Value<R> where R : class, ResObj
     {
@@ -361,7 +362,7 @@ namespace FourZeroOne.Core.Tokens
                 $"Recieved: {runtime.GetState().Variables[_toIdentifier]}\n" +
                 $"Current Scope:\n" +
                 $"{runtime.GetState().Variables.Elements.AccumulateInto("", (msg, x) => msg + $"> '{x.key}' : {x.val}\n")}");
-            return ControlledFlow.FromResult(o);
+            return ControlledFlow.Resolved(o);
         }
 
         private readonly VariableIdentifier<R> _toIdentifier;

@@ -5,13 +5,16 @@ using System.Text;
 using System.Threading.Tasks;
 using MC = MorseCode.ITask;
 
-namespace ControlledFlows;
-public interface ICeasableFlow : MC.ITask
+#nullable enable
+namespace ControlledFlows
 {
-    public void Cease();
-}
-public interface ICeasableFlow<out T> : MC.ITask<T>
-{
-    public ICeasableAwaiter<T> GetCeasableAwaiter();
-    public void Cease();
+    public interface ICeasableFlow : MC.ITask
+    {
+        public void Cease();
+    }
+    public interface ICeasableFlow<out T> : MC.ITask<T>
+    {
+        public ICeasableAwaiter<T> GetCeasableAwaiter();
+        public void Cease();
+    }
 }
