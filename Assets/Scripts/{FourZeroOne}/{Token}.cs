@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Perfection;
-using ControlledTasks;
+using ControlledFlows;
 #nullable enable
 namespace FourZeroOne.Token
 {
@@ -14,7 +14,7 @@ namespace FourZeroOne.Token
     {
         // "ToNodes(IRuntime runtime)".
         // "Resolve(IOption<ResObj>[]...)"
-        public ICeasableTask<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] args);
+        public ICeasableFlow<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] args);
     }
     
     public sealed record VariableIdentifier<R> : Unsafe.VariableIdentifier where R : class, ResObj
@@ -33,8 +33,8 @@ namespace FourZeroOne.Token
             _argTokens = args;
         }
         public Token(IEnumerable<Unsafe.IToken> args) : this(args.AsList().ToArray()) { }
-        public abstract ICeasableTask<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] args);
-        public ICeasableTask<IOption<ResObj>> ResolveUnsafe(IRuntime runtime, IOption<ResObj>[] args) { return Resolve(runtime, args); }
+        public abstract ICeasableFlow<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] args);
+        public ICeasableFlow<IOption<ResObj>> ResolveUnsafe(IRuntime runtime, IOption<ResObj>[] args) { return Resolve(runtime, args); }
         private Unsafe.IToken[] _argTokens;
     }
 
@@ -63,19 +63,19 @@ namespace FourZeroOne.Token
 
     public abstract record Value<R> : Token<R> where R : class, ResObj
     {
-        public sealed override ICeasableTask<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] _)
+        public sealed override ICeasableFlow<IOption<R>> Resolve(IRuntime runtime, IOption<ResObj>[] _)
         {
             return Evaluate(runtime);
         }
         protected Value() : base() { }
-        protected abstract ICeasableTask<IOption<R>> Evaluate(IRuntime runtime);
+        protected abstract ICeasableFlow<IOption<R>> Evaluate(IRuntime runtime);
     }
     public abstract record PureValue<R> : Value<R> where R : class, ResObj
     {
         protected PureValue() : base() { }
-        protected sealed override ICeasableTask<IOption<R>> Evaluate(IRuntime _)
+        protected sealed override ICeasableFlow<IOption<R>> Evaluate(IRuntime _)
         {
-            return ControlledTask.FromResult(EvaluatePure().AsSome());
+            return ControlledFlow.FromResult(EvaluatePure().AsSome());
         }
         protected abstract R EvaluatePure();
     }
@@ -89,12 +89,12 @@ namespace FourZeroOne.Token
         where ROut : class, ResObj
     {
         public IToken<RArg1> Arg1 => (IToken<RArg1>)ArgTokens[0];
-        public sealed override ICeasableTask<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
+        public sealed override ICeasableFlow<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
         {
             return Evaluate(runtime, args[0].RemapAs(x => (RArg1)x));
         }
 
-        protected abstract ICeasableTask<IOption<ROut>> Evaluate(IRuntime runtime, IOption<RArg1> in1);
+        protected abstract ICeasableFlow<IOption<ROut>> Evaluate(IRuntime runtime, IOption<RArg1> in1);
         protected Function(IToken<RArg1> in1) : base(in1) { }
     }
 
@@ -112,12 +112,12 @@ namespace FourZeroOne.Token
     {
         public IToken<RArg1> Arg1 => (IToken<RArg1>)ArgTokens[0];
         public IToken<RArg2> Arg2 => (IToken<RArg2>)ArgTokens[1];
-        public sealed override ICeasableTask<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
+        public sealed override ICeasableFlow<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
         {
             return Evaluate(runtime, args[0].RemapAs(x => (RArg1)x), args[1].RemapAs(x => (RArg2)x));
         }
 
-        protected abstract ICeasableTask<IOption<ROut>> Evaluate(IRuntime runtime, IOption<RArg1> in1, IOption<RArg2> in2);
+        protected abstract ICeasableFlow<IOption<ROut>> Evaluate(IRuntime runtime, IOption<RArg1> in1, IOption<RArg2> in2);
         protected Function(IToken<RArg1> in1, IToken<RArg2> in2) : base(in1, in2) { }
     }
 
@@ -138,12 +138,12 @@ namespace FourZeroOne.Token
         public IToken<RArg1> Arg1 => (IToken<RArg1>)ArgTokens[0];
         public IToken<RArg2> Arg2 => (IToken<RArg2>)ArgTokens[1];
         public IToken<RArg3> Arg3 => (IToken<RArg3>)ArgTokens[2];
-        public sealed override ICeasableTask<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
+        public sealed override ICeasableFlow<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] args)
         {
             return Evaluate(runtime, args[0].RemapAs(x => (RArg1)x), args[1].RemapAs(x => (RArg2)x), args[2].RemapAs(x => (RArg3)x));
         }
 
-        protected abstract ICeasableTask<IOption<ROut>> Evaluate(IRuntime runtime, IOption<RArg1> in1, IOption<RArg2> in2, IOption<RArg3> in3);
+        protected abstract ICeasableFlow<IOption<ROut>> Evaluate(IRuntime runtime, IOption<RArg1> in1, IOption<RArg2> in2, IOption<RArg3> in3);
         protected Function(IToken<RArg1> in1, IToken<RArg2> in2, IToken<RArg3> in3) : base(in1, in2, in3) { }
         
     }
@@ -158,12 +158,12 @@ namespace FourZeroOne.Token
         where ROut : class, ResObj
     {
         public IEnumerable<IToken<RArg>> Args => ArgTokens.Map(x => (IToken<RArg>)x);
-        public sealed override ICeasableTask<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] tokens)
+        public sealed override ICeasableFlow<IOption<ROut>> Resolve(IRuntime runtime, IOption<ResObj>[] tokens)
         {
             return Evaluate(runtime, tokens.Map(x => x.RemapAs(x => (RArg)x)));
         }
 
-        protected abstract ICeasableTask<IOption<ROut>> Evaluate(IRuntime runtime, IEnumerable<IOption<RArg>> inputs);
+        protected abstract ICeasableFlow<IOption<ROut>> Evaluate(IRuntime runtime, IEnumerable<IOption<RArg>> inputs);
         protected Combiner(IEnumerable<IToken<RArg>> tokens) : base(tokens) { }
 
     }
@@ -176,11 +176,11 @@ namespace FourZeroOne.Token
 
         protected abstract ROut EvaluatePure(RArg1 in1);
         protected PureFunction(IToken<RArg1> in1) : base(in1) { }
-        protected sealed override ICeasableTask<IOption<ROut>> Evaluate(IRuntime _, IOption<RArg1> in1)
+        protected sealed override ICeasableFlow<IOption<ROut>> Evaluate(IRuntime _, IOption<RArg1> in1)
         {
             IOption<ROut> o = (in1.CheckNone(out var a)) ? new None<ROut>() :
                 EvaluatePure(a).AsSome();
-            return ControlledTask.FromResult(o);
+            return ControlledFlow.FromResult(o);
         }
     }
     public abstract record PureFunction<RArg1, RArg2, ROut> : Function<RArg1, RArg2, ROut>
@@ -190,11 +190,11 @@ namespace FourZeroOne.Token
     {
         protected abstract ROut EvaluatePure(RArg1 in1, RArg2 in2);
         protected PureFunction(IToken<RArg1> in1, IToken<RArg2> in2) : base(in1, in2) { }
-        protected sealed override ICeasableTask<IOption<ROut>> Evaluate(IRuntime _, IOption<RArg1> in1, IOption<RArg2> in2)
+        protected sealed override ICeasableFlow<IOption<ROut>> Evaluate(IRuntime _, IOption<RArg1> in1, IOption<RArg2> in2)
         {
             IOption<ROut> o = (in1.CheckNone(out var a) || in2.CheckNone(out var b)) ? new None<ROut>() :
                 EvaluatePure(a, b).AsSome();
-            return ControlledTask.FromResult(o);
+            return ControlledFlow.FromResult(o);
         }
     }
     public abstract record PureFunction<RArg1, RArg2, RArg3, ROut> : Function<RArg1, RArg2, RArg3, ROut>
@@ -206,11 +206,11 @@ namespace FourZeroOne.Token
 
         protected abstract ROut EvaluatePure(RArg1 in1, RArg2 in2, RArg3 in3);
         protected PureFunction(IToken<RArg1> in1, IToken<RArg2> in2, IToken<RArg3> in3) : base(in1, in2, in3) { }
-        protected sealed override ICeasableTask<IOption<ROut>> Evaluate(IRuntime _, IOption<RArg1> in1, IOption<RArg2> in2, IOption<RArg3> in3)
+        protected sealed override ICeasableFlow<IOption<ROut>> Evaluate(IRuntime _, IOption<RArg1> in1, IOption<RArg2> in2, IOption<RArg3> in3)
         {
             IOption<ROut> o = (in1.CheckNone(out var a) || in2.CheckNone(out var b) || in3.CheckNone(out var c)) ? new None<ROut>() :
                 EvaluatePure(a, b, c).AsSome();
-            return ControlledTask.FromResult(o);
+            return ControlledFlow.FromResult(o);
         }
     }
     public abstract record PureCombiner<RArg, ROut> : Combiner<RArg, ROut>
@@ -220,7 +220,7 @@ namespace FourZeroOne.Token
 
         protected abstract ROut EvaluatePure(IEnumerable<RArg> inputs);
         protected PureCombiner(IEnumerable<IToken<RArg>> tokens) : base(tokens) { }
-        protected sealed override ICeasableTask<IOption<ROut>> Evaluate(IRuntime _, IEnumerable<IOption<RArg>> inputs) => ControlledTask.FromResult(EvaluatePure(inputs.Filter(x => x.IsSome()).Map(x => x.Unwrap())).AsSome());
+        protected sealed override ICeasableFlow<IOption<ROut>> Evaluate(IRuntime _, IEnumerable<IOption<RArg>> inputs) => ControlledFlow.FromResult(EvaluatePure(inputs.Filter(x => x.IsSome()).Map(x => x.Unwrap())).AsSome());
     }
     // ----
     #endregion
@@ -232,7 +232,7 @@ namespace FourZeroOne.Token
     {
         public PresentStateGetter(IToken<RSource> source) : base(source) { }
         protected abstract PIndexedSet<int, RSource> GetStatePSet(IRuntime runtime);
-        protected sealed override ICeasableTask<IOption<RSource>> Evaluate(IRuntime runtime, IOption<RSource> in1) { return ControlledTask.FromResult(in1.RemapAs(x => GetStatePSet(runtime)[x.UUID])); }
+        protected sealed override ICeasableFlow<IOption<RSource>> Evaluate(IRuntime runtime, IOption<RSource> in1) { return ControlledFlow.FromResult(in1.RemapAs(x => GetStatePSet(runtime)[x.UUID])); }
     }
 }
 namespace FourZeroOne.Token.Unsafe
@@ -243,7 +243,7 @@ namespace FourZeroOne.Token.Unsafe
     public interface IToken
     {
         public IToken[] ArgTokens { get; }
-        public ICeasableTask<IOption<ResObj>> ResolveUnsafe(IRuntime runtime, IOption<ResObj>[] args);
+        public ICeasableFlow<IOption<ResObj>> ResolveUnsafe(IRuntime runtime, IOption<ResObj>[] args);
     }
 
     public interface IHasArg1<RArg> : IHasArg1 where RArg : class, ResObj

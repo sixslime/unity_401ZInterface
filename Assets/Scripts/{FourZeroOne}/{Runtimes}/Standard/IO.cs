@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading.Tasks;
-using ControlledTasks;
+using ControlledFlows;
 using UnityEngine.InputSystem;
 using Perfection;
 using System;
@@ -20,7 +20,7 @@ namespace FourZeroOne.Runtimes.Standard
     {
         private int depth = 0;
         private string depthPad => "--".Yield(depth).AccumulateInto("", (msg, x) => msg + x);
-        public ICeasableTask<IOption<IEnumerable<R>>?> ReadSelection<R>(IEnumerable<R> outOf, int count) where R : class, ResObj
+        public ICeasableFlow<IOption<IEnumerable<R>>?> ReadSelection<R>(IEnumerable<R> outOf, int count) where R : class, ResObj
         {
             return SelectionLogic(outOf, count);
         }
@@ -50,7 +50,7 @@ namespace FourZeroOne.Runtimes.Standard
         }
 
         // very temporary (obv), bare minumum to allow for selection token testing.
-        private async ICeasableTask<IOption<List<R>>> SelectionLogic<R>(IEnumerable<R> outOf, int count)
+        private async ICeasableFlow<IOption<List<R>>> SelectionLogic<R>(IEnumerable<R> outOf, int count)
         {
             var o = new List<R>(count);
             if (0 >= count) return new None<List<R>>();
@@ -70,7 +70,7 @@ namespace FourZeroOne.Runtimes.Standard
                 options.Add((visual, v));
             }
             count = (count > _total) ? _total : count;
-            var resolveOnAllSelected = new ControlledTask.ControlledTask();
+            var resolveOnAllSelected = new ControlledFlow.ControlledFlow();
             var input = new Generated.TestInput();
             input.Selection.left.performed += _ => __Left();
             input.Selection.right.performed += _ => __Right();

@@ -1,7 +1,7 @@
 
 using System.Collections.Generic;
 using Perfection;
-using ControlledTasks;
+using ControlledFlows;
 using System.Threading.Tasks;
 using static UnityEngine.Debug;
 #nullable enable
@@ -14,8 +14,8 @@ namespace FourZeroOne.Runtime
     public interface IRuntime
     {
         public State GetState();
-        public ICeasableTask<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj;
-        public ICeasableTask<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj;
+        public ICeasableFlow<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj;
+        public ICeasableFlow<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj;
     }
 
     //garbage collector reliant/heavy implementation
@@ -26,14 +26,14 @@ namespace FourZeroOne.Runtime
             _currentState = startingState;
             _operationStack = new LinkedStack<IToken>(program).AsSome();
             _resolutionStack = new None<LinkedStack<Resolved>>();
-            _evalThread = ControlledTask.FromResult(new None<ResObj>());
-            _runThread = ControlledTask.FromResult((Resolved)(new None<ResObj>()));
+            _evalThread = ControlledFlow.FromResult(new None<ResObj>());
+            _runThread = ControlledFlow.FromResult((Resolved)(new None<ResObj>()));
             _frameStack = new None<LinkedStack<Frame>>();
             AddFrame(program, new None<Resolved>());
         }
         public async Task<Resolved> Run()
         {
-            _runThread = new ControlledTask<Resolved>();
+            _runThread = new ControlledFlow<Resolved>();
             StartEvalThread();
             return await _runThread;
         }
@@ -42,7 +42,7 @@ namespace FourZeroOne.Runtime
             _runThread.Resolve(resolution);
         }
         public State GetState() => _currentState;
-        public ICeasableTask<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj
+        public ICeasableFlow<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj
         {
             var node = _operationStack.Unwrap();
             if (node.Value is not Core.Tokens.PerformAction<R> pToken)
@@ -61,7 +61,7 @@ namespace FourZeroOne.Runtime
 
             throw new System.Exception("Fuck!");
         }
-        public ICeasableTask<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj
+        public ICeasableFlow<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj
         {
             return SelectionImplementation(from, count);
         }
@@ -69,7 +69,7 @@ namespace FourZeroOne.Runtime
         protected abstract void RecieveToken(IToken token);
         protected abstract void RecieveResolution(IOption<ResObj> resolution);
         protected abstract void RecieveRuleSteps(IEnumerable<(IToken token, Rule.IRule appliedRule)> steps);
-        protected abstract ControlledTask<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count) where R : class, ResObj;
+        protected abstract ControlledFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count) where R : class, ResObj;
 
         protected void GoToFrame(LinkedStack<Frame> frameStack)
         {
@@ -127,7 +127,7 @@ namespace FourZeroOne.Runtime
                 _operationStack = operationNode.AsSome();
                 int argAmount = operationNode.Value.ArgTokens.Length;
                 
-                //DEV - each operation node should have a IOption<ControlledTask<Resolved>> attached that resolves upon resolution.
+                //DEV - each operation node should have a IOption<ControlledFlow<Resolved>> attached that resolves upon resolution.
                 if (argAmount == 0 || (_resolutionStack.Check(out var resolutionNode) && resolutionNode.Depth == operationNode.Depth + 1))
                 {
                     var argPass = new Resolved[argAmount];
@@ -190,8 +190,8 @@ namespace FourZeroOne.Runtime
         }
 
         private State _currentState;
-        private ICeasableTask<Resolved> _evalThread;
-        private ControlledTask<Resolved> _runThread;
+        private ICeasableFlow<Resolved> _evalThread;
+        private ControlledFlow<Resolved> _runThread;
         private IOption<LinkedStack<Frame>> _frameStack;
         private IOption<LinkedStack<IToken>> _operationStack;
         private IOption<LinkedStack<Resolved>> _resolutionStack;
