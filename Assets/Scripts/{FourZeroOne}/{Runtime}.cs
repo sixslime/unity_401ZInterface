@@ -23,7 +23,7 @@ namespace FourZeroOne.Runtime
     {
         public FrameSaving(State startingState, IToken program)
         {
-            _currentState = startingState;
+            _currentState = startingState; 
             _operationStack = new LinkedStack<IToken>(program).AsSome();
             _resolutionStack = new None<LinkedStack<Resolved>>();
             _evalThread = ControlledFlow.Resolved(new None<ResObj>());
@@ -122,12 +122,18 @@ namespace FourZeroOne.Runtime
                 {
                     Value = ApplyRules(unruledOperationNode.Value, _currentState.Rules.Elements, out var appliedRules)
                 };
+                _currentState = _currentState with
+                {
+                    dRules = Q => Q with
+                    {
+                        dElements = Q => Q.Filter(x => !appliedRules.Map(a => a.rule).HasMatch(y => x == y))
+                    }
+                };
                 RecieveRuleSteps(appliedRules);
                 RecieveToken(operationNode.Value);
                 _operationStack = operationNode.AsSome();
                 int argAmount = operationNode.Value.ArgTokens.Length;
                 
-                //DEV - each operation node should have a IOption<ControlledFlow<Resolved>> attached that resolves upon resolution.
                 if (argAmount == 0 || (_resolutionStack.Check(out var resolutionNode) && resolutionNode.Depth == operationNode.Depth + 1))
                 {
                     var argPass = new Resolved[argAmount];

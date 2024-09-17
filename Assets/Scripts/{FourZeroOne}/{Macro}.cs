@@ -6,27 +6,34 @@ using ControlledFlows;
 #nullable enable
 namespace FourZeroOne.Macro
 {
+
     using ResObj = Resolution.IResolution;
     using r = Core.Resolutions;
     using Token;
     using Runtime;
-    public record Macro<R> : Token<R> where R : class, ResObj
+
+    public interface IMacro<out R> : IToken<R>, Unsafe.IMacro where R : class, ResObj
     {
-        public override bool IsFallible => Expand().IsFallible;
-        protected override ICeasableFlow<IOption<R>> ResolveInternal(IRuntime runtime)
+        public IToken<R> Expand();
+    }
+    public record Macro<R> : Token<R>, IMacro<R> where R : class, ResObj
+    {
+        public override ICeasableFlow<IOption<R>> Resolve(IRuntime _, IOption<ResObj>[] __)
         {
-            return Expand().ResolveWithRules(runtime);
+            throw new System.Exception("Macro directly resolved without expansion.");
         }
         protected Macro(Proxy.Unsafe.IProxy<R> proxy)
         {
             _proxy = proxy;
             _cachedRealization = null;
         }
-        private IToken<R> Expand()
+        public IToken<R> Expand()
         {
-            _cachedRealization ??= _proxy.UnsafeTypedRealize(this, null);
+            _cachedRealization ??= _proxy.UnsafeTypedRealize(this, new None<Rule.IRule>());
             return _cachedRealization;
         }
+        public Token.Unsafe.IToken ExpandUnsafe() => Expand();
+
         private readonly Proxy.Unsafe.IProxy<R> _proxy;
         //NOTE: this only works under the assumption that proxies are perfect pure (stateless immutable).
         private IToken<R>? _cachedRealization;
@@ -97,4 +104,16 @@ namespace FourZeroOne.Macro
         private readonly IToken<RArg3> _arg3;
     }
 
+}
+
+namespace FourZeroOne.Macro.Unsafe
+{
+    using ResObj = Resolution.IResolution;
+    using r = Core.Resolutions;
+    using Token.Unsafe;
+    using Runtime;
+    public interface IMacro : IToken
+    {
+        public IToken ExpandUnsafe();
+    }
 }
