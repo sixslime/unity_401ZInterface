@@ -13,12 +13,12 @@ namespace FourZeroOne.Core.TokenSyntax
     {
         public sealed record IfElse<R> where R : class, ResObj
         {
-            public IToken<R> Then { get; init; }
-            public IToken<R> Else { get; init; }
+            public IToken<r.Action<R>> Then { get; init; }
+            public IToken<r.Action<R>> Else { get; init; }
         }
         public sealed record SubEnvironment<R> where R : class, ResObj
         {
-            public List<IToken> Environment { get; init; }
+            public IToken<Resolution.IMulti<ResObj>> Environment { get; init; }
             public IToken<R> SubToken { get; init; }
         }
         public sealed record Recursive<RArg1, ROut>
@@ -57,7 +57,7 @@ namespace FourZeroOne.Core.TokenSyntax
         { return new(); }
 
         public static SubEnvironment<R> tSubEnvironment<R>(TokenStructure.SubEnvironment<R> block) where R : class, ResObj
-        { return new(block.Environment) { SubToken = block.SubToken }; }
+        { return new(block.Environment, block.SubToken); }
 
         public static Recursive<RArg1, ROut> tRecursive<RArg1, ROut>(TokenStructure.Recursive<RArg1, ROut> block)
             where RArg1 : class, ResObj
@@ -102,20 +102,14 @@ namespace FourZeroOne.Core.TokenSyntax
         
         public static IfElse<R> tIfTrue<R>(this IToken<Bool> condition, TokenStructure.IfElse<R> block) where R : class, ResObj
         {
-            return new(condition)
-            {
-                Pass = block.Then,
-                Fail = block.Else
-            };
+            return new(condition, block.Then, block.Else);
         }
-
+        public static Fixed<r.Action<R>> tAsAction<R>(this IToken<R> token) where R : class, ResObj
+        {
+            return new(new() { Token = token });
+        }
         public static Tokens.Multi.Exclusion<R> tWithout<R>(this IToken<Multi<R>> source, IToken<Multi<R>> exclude) where R : class, ResObj
         { return new(source, exclude); }
-        public static Tokens.Multi.Filtered<R> tDynamicFilter<R>(this IToken<Multi<R>> source, out VariableIdentifier<R> elementIdentifier, IToken<Bool> condition) where R : class, ResObj
-        {
-            elementIdentifier = new();
-            return new(source, elementIdentifier, condition);
-        }
         public static Tokens.Multi.Count tCount(this IToken<Resolution.IMulti<ResObj>> source)
         { return new(source); }
         public static Tokens.Multi.Yield<R> tYield<R>(this IToken<R> token) where R : class, ResObj
