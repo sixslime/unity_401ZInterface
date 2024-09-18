@@ -222,15 +222,6 @@ namespace FourZeroOne.Core.Tokens
             }
         }
 
-        public sealed record Filtered<R> : PureAccumulator<R, r.Bool, r.Multi<R>> where R : class, ResObj
-        {
-            public Filtered(IToken<Resolution.IMulti<R>> iterator, VariableIdentifier<R> elementVariable, IToken<r.Bool> lambda) : base(iterator, elementVariable, lambda) { }
-            protected override r.Multi<R> PureAccumulate(IEnumerable<(R element, r.Bool output)> outputs)
-            {
-                return new() { Values = outputs.Filter(x => x.output.IsTrue).Map(x => x.element) };
-            }
-        }
-
         public sealed record Count : PureFunction<Resolution.IMulti<ResObj>, r.Number>
         {
             public Count(IToken<Resolution.IMulti<ResObj>> of) : base(of) { }

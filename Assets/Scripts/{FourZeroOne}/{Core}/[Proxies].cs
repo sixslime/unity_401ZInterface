@@ -57,39 +57,15 @@ namespace FourZeroOne.Core.Proxies
         where ROut : class, ResObj
     {
         public IProxy<TOrig, ROut> SubTokenProxy { get; init; }
-        public SubEnvironment(IEnumerable<IProxyOf<TOrig>> proxies)
+        public SubEnvironment(IProxy<TOrig, Resolution.IMulti<ResObj>> environment)
         {
-            _envModifiers = new() { Elements = proxies };
+            _envModifiers = environment;
         }
-        public SubEnvironment(params IProxy<TOrig, ResObj>[] proxies) : this((IEnumerable<IProxy<TOrig, ResObj>>)proxies) { }
         public override IToken<ROut> Realize(TOrig original, IOption<Rule.IRule> rule)
         {
-            return new Tokens.SubEnvironment<ROut>(_envModifiers.Elements.Map(x => x.UnsafeContextualRealize(original, rule)))
-            {
-                SubToken = SubTokenProxy.Realize(original, rule)
-            };
+            return new Tokens.SubEnvironment<ROut>(_envModifiers.Realize(original, rule), SubTokenProxy.Realize(original, rule));
         }
-
-        private readonly PList<IProxyOf<TOrig>> _envModifiers;
-    }
-    public sealed record Accumulator<TNew, TOrig, RElement, RGen, RInto> : FunctionProxy<TOrig, RInto>
-        where TNew : Token.Accumulator<RElement, RGen, RInto>
-        where TOrig : IToken
-        where RElement : class, ResObj
-        where RGen : class, ResObj
-        where RInto : class, ResObj
-    {
-        public Accumulator(IProxy<TOrig, Resolution.IMulti<RElement>> iterator, VariableIdentifier<RElement> elementVariable, IProxy<TOrig, RGen> generator) : base(iterator, generator)
-        {
-            _elementIdentifier = elementVariable;
-        }
-        protected override IToken<RInto> ConstructFromArgs(TOrig _, List<IToken> tokens)
-        {
-            return (Token.Accumulator<RElement, RGen, RInto>)typeof(TNew)
-                .GetConstructor(new Type[] { typeof(IToken<Resolution.IMulti<RElement>>), typeof(string), typeof(IToken<RGen>) })
-                .Invoke(new object[] { (IToken<Resolution.IMulti<RElement>>)tokens[0], _elementIdentifier, (IToken<RGen>)tokens[1] });
-        }
-        private readonly VariableIdentifier<RElement> _elementIdentifier;
+        private readonly IProxy<TOrig, Resolution.IMulti<ResObj>> _envModifiers;
     }
     public sealed record Variable<TOrig, R> : Proxy<TOrig, Resolutions.DeclareVariable<R>>
         where TOrig : IToken
@@ -109,22 +85,18 @@ namespace FourZeroOne.Core.Proxies
         private readonly IProxy<TOrig, R> _objectProxy;
     }
 
-    public sealed record IfElse<TOrig, R> : Proxy<TOrig, R> where TOrig : IToken where R : class, ResObj
+    public sealed record IfElse<TOrig, R> : Proxy<TOrig, Resolutions.Action<R>> where TOrig : IToken where R : class, ResObj
     {
         public readonly IProxy<TOrig, Resolutions.Bool> Condition;
-        public IProxy<TOrig, R> PassProxy { get; init; }
-        public IProxy<TOrig, R> FailProxy { get; init; }
+        public IProxy<TOrig, Resolutions.Action<R>> PassProxy { get; init; }
+        public IProxy<TOrig, Resolutions.Action<R>> FailProxy { get; init; }
         public IfElse(IProxy<TOrig, Resolutions.Bool> condition)
         {
             Condition = condition;
         }
-        public override IToken<R> Realize(TOrig original, IOption<Rule.IRule> rule)
+        public override IToken<Resolutions.Action<R>> Realize(TOrig original, IOption<Rule.IRule> rule)
         {
-            return new Tokens.IfElse<R>(Condition.Realize(original, rule))
-            {
-                Pass = PassProxy.Realize(original, rule),
-                Fail = FailProxy.Realize(original, rule),
-            };
+            return new Tokens.IfElse<R>(Condition.Realize(original, rule), PassProxy.Realize(original, rule), FailProxy.Realize(original, rule));
         }
     }
     // ---- [ OriginalArgs ] ----
