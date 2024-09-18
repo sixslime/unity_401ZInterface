@@ -11,6 +11,7 @@ namespace FourZeroOne.Core.Proxies
     using Token.Unsafe;
     using Proxy.Unsafe;
     using Token;
+    using r = Resolutions;
     using ResObj = Resolution.IResolution;
     public sealed record Direct<TOrig, R> : Proxy<TOrig, R> where TOrig : IToken where R : class, ResObj
     {
@@ -24,6 +25,19 @@ namespace FourZeroOne.Core.Proxies
         private readonly IToken<R> _token;
     }
 
+    public sealed record ToAction<TOrig, R> : Proxy<TOrig, r.Action<R>> where TOrig : IToken where R : class, ResObj
+    {
+        public ToAction(IProxy<TOrig, R> proxy)
+        {
+            _actionProxy = proxy;
+        }
+        public override IToken<r.Action<R>> Realize(TOrig original, IOption<Rule.IRule> rule)
+        {
+            return new Tokens.Fixed<r.Action<R>>(new() { Token = _actionProxy.Realize(original, rule) });
+        }
+
+        private readonly IProxy<TOrig, R> _actionProxy;
+    }
     public sealed record CombinerTransform<TNew, TOrig, RArg, ROut> : Proxy<TOrig, ROut>
         where TOrig : IHasCombinerArgs<RArg>, IToken<ROut>
         where TNew : Token.ICombiner<RArg, ROut>

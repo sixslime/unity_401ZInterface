@@ -84,7 +84,8 @@ namespace FourZeroOne.Token
     /// <code>(IToken&lt;<typeparamref name="RArg1"/>&gt;)</code>
     /// </summary>
     /// <typeparam name="RArg1"></typeparam>
-    public abstract record Function<RArg1, ROut> : Token<ROut>
+    public abstract record Function<RArg1, ROut> : Token<ROut>,
+        IFunction<RArg1, ROut>
         where RArg1 : class, ResObj
         where ROut : class, ResObj
     {

@@ -11,15 +11,15 @@ namespace FourZeroOne.Core.ProxySyntax
     public interface IOriginalHint<TOrig, out TOrig_> where TOrig : IToken where TOrig_ : IToken { }
     public sealed record RHint<R> where R : class, ResObj
     {
-        public static RHint<R> Specify() => new();
+        public static RHint<R> Hint() => new();
     }
     public sealed record OriginalHint<TOrig> : IOriginalHint<TOrig, TOrig> where TOrig : IToken { }
     namespace ProxyStructure
     {
         public sealed record IfElse<TOrig, R> where TOrig : IToken where R : class, ResObj
         {
-            public IProxy<TOrig, R> Then { get; init; }
-            public IProxy<TOrig, R> Else { get; init; }
+            public IProxy<TOrig, r.Action<R>> Then { get; init; }
+            public IProxy<TOrig, r.Action<R>> Else { get; init; }
         }
         public sealed record RecursiveCall<RArg1, RArg2, RArg3, ROut>
             where RArg1 : class, ResObj
@@ -47,20 +47,20 @@ namespace FourZeroOne.Core.ProxySyntax
         }
         public sealed record SubEnvironment<TOrig, R> where TOrig : IToken where R : class, ResObj
         {
-            public List<Proxy.Unsafe.IProxyOf<TOrig>> EnvironmentProxies { get; init; }
+            public Proxy.IProxy<TOrig, Resolution.IMulti<ResObj>> EnvironmentProxy { get; init; }
             public IProxy<TOrig, R> SubProxy { get; init; }
         }
     }
     public static class MakeProxy
     {
-        public static IProxy<TOrig, ROut> Statement<TOrig, ROut>(System.Func<OriginalHint<TOrig>, IProxy<TOrig, ROut>> statement) where TOrig : IToken where ROut : class, ResObj
+        public static IProxy<TOrig, ROut> Statement<TOrig, ROut>(System.Func<OriginalHint<TOrig>, IProxy<TOrig, ROut>> statement) where TOrig : Token.IToken<ROut> where ROut : class, ResObj
         { return statement(new()); }
         public static Rule.Rule<TOrig, ROut> AsRuleFor<TOrig, ROut>(System.Func<OriginalHint<TOrig>, IProxy<TOrig, ROut>> statement) where TOrig : Token.IToken<ROut> where ROut : class, ResObj
         { return new(statement(new())); }
     }
     public static class _Extensions
     {
-        public static Direct<TOrig, R> pAsProxyFor<TOrig, R>(this Token.IToken<R> token, OriginalHint<TOrig> _) where TOrig : IToken where R : class, ResObj
+        public static Direct<TOrig, R> pDirect<TOrig, R>(this Token.IToken<R> token, OriginalHint<TOrig> _) where TOrig : IToken where R : class, ResObj
         { return new(token); }
         public static OriginalArg1<TOrig, R> pOriginalA<TOrig, R>(this IOriginalHint<TOrig, Token.Unsafe.IHasArg1<R>> _) where TOrig : Token.Unsafe.IHasArg1<R> where R : class, ResObj
         { return new(); }
@@ -71,10 +71,14 @@ namespace FourZeroOne.Core.ProxySyntax
 
         public static SubEnvironment<TOrig, R> pSubEnvironment<TOrig, R>(this OriginalHint<TOrig> _, RHint<R> __, ProxyStructure.SubEnvironment<TOrig, R> block) where TOrig : IToken where R : class, ResObj
         {
-            return new(block.EnvironmentProxies)
+            return new(block.EnvironmentProxy)
             {
                 SubTokenProxy = block.SubProxy
             };
+        }
+        public static Combiner<Tokens.Multi.Union<R>, TOrig, Resolution.IMulti<R>, r.Multi<R>> pArrayOf<TOrig, R>(this OriginalHint<TOrig> _, RHint<R> __, List<IProxy<TOrig, R>> array) where TOrig : IToken where R : class, ResObj
+        {
+            return array.pToMulti();
         }
 
         public static RecursiveCall<RArg1, ROut> pRecurseWith<RArg1, ROut>(this OriginalHint<Tokens.Recursive<RArg1, ROut>> _, ProxyStructure.RecursiveCall<RArg1, ROut> block)
@@ -93,12 +97,15 @@ namespace FourZeroOne.Core.ProxySyntax
             where ROut : class, ResObj
         { return new(block.A, block.B, block.C); }
 
-        public static Variable<TOrig, R> pAs<TOrig, R>(this IProxy<TOrig, R> value, out Token.VariableIdentifier<R> identifier) where TOrig : IToken where R : class, ResObj
+        public static Variable<TOrig, R> pAsVariable<TOrig, R>(this IProxy<TOrig, R> value, out Token.VariableIdentifier<R> identifier) where TOrig : IToken where R : class, ResObj
         {
             identifier = new();
             return new(identifier, value);
         }
-
+        public static ToAction<TOrig, R> pAsAction<TOrig, R>(this IProxy<TOrig, R> proxy) where TOrig : IToken where R : class, ResObj
+        {
+            return new(proxy);
+        }
         public static IfElse<TOrig, R> pIfTrue<TOrig, R>(this IProxy<TOrig, r.Bool> condition, RHint<R> _, ProxyStructure.IfElse<TOrig, R> block) where TOrig : IToken where R : class, ResObj
         {
             return new(condition)
@@ -110,11 +117,6 @@ namespace FourZeroOne.Core.ProxySyntax
 
         public static Function<Tokens.Multi.Exclusion<R>, TOrig, Resolution.IMulti<R>, Resolution.IMulti<R>, r.Multi<R>> pWithout<TOrig, R>(this IProxy<TOrig, Resolution.IMulti<R>> source, IProxy<TOrig, Resolution.IMulti<R>> values) where TOrig : IToken where R : class, ResObj
         { return new(source, values); }
-        public static Accumulator<Tokens.Multi.Filtered<R>, TOrig, R, r.Bool, r.Multi<R>> pDynamicFilter<TOrig, R>(this IProxy<TOrig, Resolution.IMulti<R>> source, out Token.VariableIdentifier<R> elementIdentifier, IProxy<TOrig, r.Bool> condition) where TOrig : IToken where R : class, ResObj
-        {
-            elementIdentifier = new();
-            return new(source, elementIdentifier, condition);
-        }
         public static Function<Tokens.Multi.Count, TOrig, Resolution.IMulti<ResObj>, r.Number> pCount<TOrig>(this IProxy<TOrig, Resolution.IMulti<ResObj>> source) where TOrig : IToken
         { return new(source); }
         public static Function<Tokens.Multi.Yield<R>, TOrig, R, r.Multi<R>> pYield<TOrig, R>(this IProxy<TOrig, R> source) where TOrig : IToken where R : class, ResObj
