@@ -28,8 +28,7 @@ namespace FourZeroOne.Runtime
             _resolutionStack = new None<LinkedStack<Resolved>>();
             _evalThread = ControlledFlow.Resolved(new None<ResObj>());
             _runThread = ControlledFlow.Resolved((Resolved)(new None<ResObj>()));
-            _frameStack = new None<LinkedStack<Frame>>();
-            AddFrame(program, new None<Resolved>());
+            _frameStack = new LinkedStack<Frame>(GenerateFrame(program, new None<Resolved>())).AsSome();
         }
         public async Task<Resolved> Run()
         {
@@ -68,6 +67,8 @@ namespace FourZeroOne.Runtime
 
         protected abstract void RecieveToken(IToken token);
         protected abstract void RecieveResolution(IOption<ResObj> resolution);
+        protected abstract void RecieveFrame(Frame frame);
+        protected abstract void RecieveMacroExpansion(IToken macro, IToken expanded);
         protected abstract void RecieveRuleSteps(IEnumerable<(IToken token, Rule.IRule appliedRule)> steps);
         protected abstract ControlledFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count) where R : class, ResObj;
 
@@ -114,24 +115,38 @@ namespace FourZeroOne.Runtime
             }
         }
 
+        private static (IToken token, State state) RuleStep(IToken token, State state, out List<(IToken fromToken, Rule.IRule appliedRule)> appliedRules)
+        {
+            var oToken = ApplyRules(token, state.Rules.Elements, out var internalAppliedRules);
+            var oState = state with
+            {
+                dRules = Q => Q with
+                {
+                    dElements = Q => Q.Filter(x => !internalAppliedRules.Map(a => a.rule).HasMatch(y => x == y))
+                }
+            };
+            appliedRules = internalAppliedRules;
+            return (oToken, oState);
+        }
         private async void StartEvalThread()
         {
-            while (_operationStack.Check(out var unruledOperationNode))
+            while (_operationStack.Check(out var operationNode))
             {
-                var operationNode = unruledOperationNode with
+                var (ruledToken, stateMinusApplied) = RuleStep(operationNode.Value, _currentState, out var appliedRules);
+                if (ruledToken is Macro.Unsafe.IMacro macro)
                 {
-                    Value = ApplyRules(unruledOperationNode.Value, _currentState.Rules.Elements, out var appliedRules)
-                };
-                _currentState = _currentState with
-                {
-                    dRules = Q => Q with
-                    {
-                        dElements = Q => Q.Filter(x => !appliedRules.Map(a => a.rule).HasMatch(y => x == y))
-                    }
-                };
+                    var expanded = macro.ExpandUnsafe();
+                    RecieveMacroExpansion(macro, expanded);
+                    (ruledToken, stateMinusApplied) = RuleStep(expanded, stateMinusApplied, out var appliedPostMacro);
+                    // Assert(appliedRules.Count = 0 || appliedPostMacro.Count = 0); logically right?
+                    appliedRules.AddRange(appliedPostMacro);
+                }
+                _currentState = stateMinusApplied;
                 RecieveRuleSteps(appliedRules);
-                RecieveToken(operationNode.Value);
+                RecieveToken(ruledToken);
+                operationNode = operationNode with { Value = ruledToken };
                 _operationStack = operationNode.AsSome();
+
                 int argAmount = operationNode.Value.ArgTokens.Length;
                 
                 if (argAmount == 0 || (_resolutionStack.Check(out var resolutionNode) && resolutionNode.Depth == operationNode.Depth + 1))
@@ -147,7 +162,9 @@ namespace FourZeroOne.Runtime
                     if (resolution.Check(out var notNolla)) _currentState = _currentState.WithResolution(notNolla);
                     PushToStack(ref _resolutionStack, operationNode.Depth, resolution);
                     PopFromStack(ref _operationStack);
-                    AddFrame(operationNode.Value, resolution.AsSome());
+                    var newFrame = GenerateFrame(operationNode.Value, resolution.AsSome());
+                    PushToStack(ref _frameStack, 0, newFrame);
+                    RecieveFrame(newFrame);
                 } else
                 {
                     PushToStack(ref _operationStack, operationNode.Depth + 1, operationNode.Value.ArgTokens.AsMutList().Reversed());
@@ -157,9 +174,9 @@ namespace FourZeroOne.Runtime
             Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
             ResolveRun(finalNode.Value);
         }
-        private void AddFrame(IToken token, IOption<Resolved> resolution)
+        private Frame GenerateFrame(IToken token, IOption<Resolved> resolution)
         {
-            var frame = new Frame()
+            return new Frame()
             {
                 Resolution = resolution,
                 Token = token,
@@ -167,7 +184,7 @@ namespace FourZeroOne.Runtime
                 OperationStack = _operationStack,
                 ResolutionStack = _resolutionStack,
             };
-            PushToStack(ref _frameStack, 0, frame);
+            
         }
         private static void PushToStack<T>(ref IOption<LinkedStack<T>> stack, int depth, IEnumerable<T> values)
         {
