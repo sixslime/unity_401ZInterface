@@ -141,5 +141,8 @@ namespace FourZeroOne.Core.ProxySyntax
         { return new(source); }
         public static Function<Tokens.IO.Select.Multiple<R>, TOrig, Resolution.IMulti<R>, r.Number, r.Multi<R>> pIO_SelectMany<TOrig, R>(this IProxy<TOrig, Resolution.IMulti<R>> source, IProxy<TOrig, r.Number> count) where TOrig : IToken where R : class, ResObj
         { return new(source, count); }
+
+        public static Function<Tokens.PerformAction<R>, TOrig, r.Action<R>, R> pPerform<TOrig, R>(this IProxy<TOrig, r.Action<R>> action) where TOrig : IToken where R : class, ResObj
+        { return new(action); }
     }
 }

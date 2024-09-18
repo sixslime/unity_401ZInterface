@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using Perfection;
 public class TESTER : MonoBehaviour
 {
-    private FourZeroOne.IRuntime _runtime;
+    private FourZeroOne.Runtime.IRuntime _runtime;
     // Start is called before the first frame update
     async void Start()
     {
@@ -27,10 +27,7 @@ public class TESTER : MonoBehaviour
         var token_tutorial_3 = token_tutorial_2.tIO_SelectOne(); //prompt user to select one from [1, 2, 3, 4], and return it
         var token_tutorial_4 = MakeToken.tSubEnvironment<r.Number>(new()
         {
-            Environment = new()
-            {
-                token_tutorial_2.tIO_SelectOne().tAs(out var mySelection),
-            },
+            Environment = token_tutorial_2.tIO_SelectOne().tAs(out var mySelection).tYield(),
             SubToken = mySelection.tRef().tMultiply(mySelection.tRef())
         }); //creates a Sub-Environment (aka scope) where 'mySelection' stores the resolution of a user selection, then references it twice to multiply it by itself.
         // is different than just calling 'token_tutorial_2.tIO_SelectOne()' twice, that would prompt the user selection 2 times, possibly resolving different values each time (because the user could select 2 different things obv.).
@@ -39,7 +36,7 @@ public class TESTER : MonoBehaviour
         // Rules are expressed by 'Proxies', which are basically just tokens, but have the ability to reference information about the token they are meant to replace (such as arguements).
         // logically, the replaced token and replacing token must both have the same resolution type.
         // MakeProxy.AsRuleFor<{token type to replace}, {resolution type}>({proxy statement specifying the replacement})
-        var rule_tutorial_1 = MakeProxy.AsRuleFor<t.Fixed<r.Number>, r.Number>(P => 4.tConst().pAsProxyFor(P)); // makes ALL constant number tokens ('t.Fixed<r.Number>') turn into 4 (as a constant number token).
+        var rule_tutorial_1 = MakeProxy.AsRuleFor<t.Fixed<r.Number>, r.Number>(P => 4.tConst().pDirect(P)); // makes ALL constant number tokens ('t.Fixed<r.Number>') turn into 4 (as a constant number token).
         var rule_tutorial_2 = MakeProxy.AsRuleFor<t.Number.Add, r.Number>(P => P.pOriginalA().pAdd(P.pOriginalA()).pSubtract(P.pOriginalB())); // makes ALL add(A, B) tokens ('t.Number.Add') turn into subtract(add(A, A), B).
         //var rule_illogical = MakeProxy.AsRuleFor<t.Number.Add, r.Bool>(P => P.pOriginalA().pIsGreaterThan(P.pOriginalB()) -- consider applying this rule to subtract(add(<number>, <number>), <number>), it would become subtract(<bool>, <number>), which does not make sense.
 
@@ -48,25 +45,26 @@ public class TESTER : MonoBehaviour
             A = 0.tConst(),
             B = 1.Sequence(x => x + 1).Take(5).Map(x => x.tConst()).tToMulti(),
             RecursiveProxyStatement = P =>
-                P.pSubEnvironment(RHint<r.Number>.Specify(), new()
+                P.pSubEnvironment(RHint<r.Number>.Hint(), new()
                 {
-                    EnvironmentProxies = new()
+                    EnvironmentProxy = P.pArrayOf(RHint<FourZeroOne.Resolution.IResolution>.Hint(), new()
                     {
-                        P.pOriginalB().pAs(out var pool),
-                        pool.tRef().pAsProxyFor(P).pIO_SelectOne().pAs(out var selection),
-                        P.pOriginalA().pAs(out var counter)
-                    },
-                    SubProxy = P.pOriginalA().pIsGreaterThan(2.tConst().pAsProxyFor(P)).pIfTrue(RHint<r.Number>.Specify(), new()
+                        P.pOriginalB().pAsVariable(out var pool),
+                        pool.tRef().pDirect(P).pIO_SelectOne().pAsVariable(out var selection),
+                        P.pOriginalA().pAsVariable(out var counter)
+                    }),
+                    SubProxy = P.pOriginalA().pIsGreaterThan(2.tConst().pDirect(P)).pIfTrue(RHint<r.Number>.Hint(), new()
                     {
-                        Then = selection.tRef().pAsProxyFor(P),
+                        Then = selection.tRef().pDirect(P).pAsAction(),
                         Else = P.pRecurseWith(new()
                         {
-                            A = counter.tRef().tAdd(1.tConst()).pAsProxyFor(P),
-                            B = pool.tRef().tWithout(selection.tRef().tYield()).pAsProxyFor(P)
-                        }).pAdd(selection.tRef().pAsProxyFor(P))
-                    })
+                            A = counter.tRef().tAdd(1.tConst()).pDirect(P),
+                            B = pool.tRef().tWithout(selection.tRef().tYield()).pDirect(P)
+                        }).pAdd(selection.tRef().pDirect(P)).pAsAction()
+                    }).pPerform()
                 })
         }); 
+        /*
         _runtime = new FourZeroOne.Runtimes.Standard.Runtime()
         {
             State = new()
@@ -77,11 +75,12 @@ public class TESTER : MonoBehaviour
             }
         };
         
+        
         while ((await new t.IO.Select.One<r.Bool>(new t.Multi.Union<r.Bool>(Iter.Over(true, false).Map(x => new t.Multi.Yield<r.Bool>(new t.Fixed<r.Bool>(x))))).Resolve(_runtime)).Unwrap().IsTrue)
         {
             Debug.Log("===========[ START ]============");
             //Debug.Log(await token_complicated.ResolveWithRules(_runtime));
-            var o = new ControlledTask.ControlledTask<TESTER>();
+            var o = new ControlledFlows.ControlledFlow<TESTER>();
             ResolveAfterSomeTime(o);
             await Task.Delay(2000);
             Debug.Log(await o);
@@ -92,9 +91,9 @@ public class TESTER : MonoBehaviour
         In<AClass> a = null;
         In<BClass> b = null;
         b = a;
-        
+        */
     }
-    async Task ResolveAfterSomeTime(ControlledTask.ControlledTask<TESTER> task)
+    async Task ResolveAfterSomeTime(ControlledFlows.ControlledFlow<TESTER> task)
     {
         await Task.Delay(1000);
         Debug.Log("cease");
