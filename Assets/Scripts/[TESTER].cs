@@ -63,19 +63,17 @@ public class TESTER : MonoBehaviour
                         }).pAdd(selection.tRef().pDirect(P)).pAsAction()
                     }).pPerform()
                 })
-        }); 
-        /*
-        _runtime = new FourZeroOne.Runtimes.Standard.Runtime()
+        });
+
+        var startState = new FourZeroOne.State()
         {
-            State = new()
-            {
-                Rules = new() { Elements = Iter.Over<FourZeroOne.Rule.IRule>() },
-                Variables = new(7),
-                Board = new() { }
-            }
+            Rules = new() { Elements = Iter.Over<FourZeroOne.Rule.IRule>() },
+            Variables = new(7),
+            Board = new() { }
         };
-        
-        
+        //_runtime = new FourZeroOne.Runtimes.FrameSaving.Gebug()
+        UnityEditor.EditorApplication.ExitPlaymode();
+        /*
         while ((await new t.IO.Select.One<r.Bool>(new t.Multi.Union<r.Bool>(Iter.Over(true, false).Map(x => new t.Multi.Yield<r.Bool>(new t.Fixed<r.Bool>(x))))).Resolve(_runtime)).Unwrap().IsTrue)
         {
             Debug.Log("===========[ START ]============");

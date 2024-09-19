@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Perfection;
 using ControlledFlows;
 using System.Threading.Tasks;
-using static UnityEngine.Debug;
+using UnityEngine;
 #nullable enable
 namespace FourZeroOne.Runtime
 {
@@ -18,17 +18,17 @@ namespace FourZeroOne.Runtime
         public ICeasableFlow<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj;
     }
 
-    //garbage collector reliant/heavy implementation
-    public abstract class FrameSaving : IRuntime
+    public abstract class FrameSaving : Runtime.IRuntime
     {
         public FrameSaving(State startingState, IToken program)
         {
-            _currentState = startingState; 
+            _currentState = startingState;
             _operationStack = new LinkedStack<IToken>(program).AsSome();
             _resolutionStack = new None<LinkedStack<Resolved>>();
             _evalThread = ControlledFlow.Resolved(new None<ResObj>());
             _runThread = ControlledFlow.Resolved((Resolved)(new None<ResObj>()));
-            _frameStack = new LinkedStack<Frame>(GenerateFrame(program, new None<Resolved>())).AsSome();
+            _frameStack = new None<LinkedStack<Frame>>();
+            StoreFrame(program, new None<Resolved>());
         }
         public async Task<Resolved> Run()
         {
@@ -67,7 +67,7 @@ namespace FourZeroOne.Runtime
 
         protected abstract void RecieveToken(IToken token);
         protected abstract void RecieveResolution(IOption<ResObj> resolution);
-        protected abstract void RecieveFrame(Frame frame);
+        protected abstract void RecieveFrame(LinkedStack<Frame> frameStackNode);
         protected abstract void RecieveMacroExpansion(IToken macro, IToken expanded);
         protected abstract void RecieveRuleSteps(IEnumerable<(IToken token, Rule.IRule appliedRule)> steps);
         protected abstract ControlledFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count) where R : class, ResObj;
@@ -95,7 +95,7 @@ namespace FourZeroOne.Runtime
         {
             public readonly IOption<LinkedStack<T>> Link;
             public readonly int Depth;
-            public T Value { get; init; } 
+            public T Value { get; init; }
             public LinkedStack(T value)
             {
                 Value = value;
@@ -148,12 +148,12 @@ namespace FourZeroOne.Runtime
                 _operationStack = operationNode.AsSome();
 
                 int argAmount = operationNode.Value.ArgTokens.Length;
-                
+
                 if (argAmount == 0 || (_resolutionStack.Check(out var resolutionNode) && resolutionNode.Depth == operationNode.Depth + 1))
                 {
                     var argPass = new Resolved[argAmount];
                     for (int i = argAmount; i >= 0; i--)
-                    { 
+                    {
                         argPass[i] = PopFromStack(ref _resolutionStack).Value;
                     }
                     _evalThread = operationNode.Value.ResolveUnsafe(this, argPass);
@@ -162,21 +162,20 @@ namespace FourZeroOne.Runtime
                     if (resolution.Check(out var notNolla)) _currentState = _currentState.WithResolution(notNolla);
                     PushToStack(ref _resolutionStack, operationNode.Depth, resolution);
                     PopFromStack(ref _operationStack);
-                    var newFrame = GenerateFrame(operationNode.Value, resolution.AsSome());
-                    PushToStack(ref _frameStack, 0, newFrame);
-                    RecieveFrame(newFrame);
-                } else
+                    StoreFrame(operationNode.Value, resolution.AsSome());
+                }
+                else
                 {
                     PushToStack(ref _operationStack, operationNode.Depth + 1, operationNode.Value.ArgTokens.AsMutList().Reversed());
                 }
             }
 
-            Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
+            Debug.Assert(_resolutionStack.Check(out var finalNode) && !finalNode.Link.IsSome());
             ResolveRun(finalNode.Value);
         }
-        private Frame GenerateFrame(IToken token, IOption<Resolved> resolution)
+        private void StoreFrame(IToken token, IOption<Resolved> resolution)
         {
-            return new Frame()
+            var newFrame = new Frame()
             {
                 Resolution = resolution,
                 Token = token,
@@ -184,7 +183,8 @@ namespace FourZeroOne.Runtime
                 OperationStack = _operationStack,
                 ResolutionStack = _resolutionStack,
             };
-            
+            PushToStack(ref _frameStack, 0, newFrame);
+            RecieveFrame(_frameStack.Unwrap());
         }
         private static void PushToStack<T>(ref IOption<LinkedStack<T>> stack, int depth, IEnumerable<T> values)
         {
@@ -218,6 +218,5 @@ namespace FourZeroOne.Runtime
         private IOption<LinkedStack<Frame>> _frameStack;
         private IOption<LinkedStack<IToken>> _operationStack;
         private IOption<LinkedStack<Resolved>> _resolutionStack;
-
     }
 }
