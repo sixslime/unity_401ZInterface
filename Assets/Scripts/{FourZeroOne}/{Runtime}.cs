@@ -14,6 +14,7 @@ namespace FourZeroOne.Runtime
     public interface IRuntime
     {
         public State GetState();
+        public Task<Resolved> Run();
         public ICeasableFlow<IOption<R>> PerformAction<R>(IToken<R> action) where R : class, ResObj;
         public ICeasableFlow<IOption<IEnumerable<R>>> ReadSelection<R>(IEnumerable<R> from, int count) where R : class, ResObj;
     }
