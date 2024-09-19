@@ -71,7 +71,7 @@ namespace FourZeroOne.Runtime
         protected abstract void RecieveFrame(LinkedStack<Frame> frameStackNode);
         protected abstract void RecieveMacroExpansion(IToken macro, IToken expanded);
         protected abstract void RecieveRuleSteps(IEnumerable<(IToken token, Rule.IRule appliedRule)> steps);
-        protected abstract ControlledFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count) where R : class, ResObj;
+        protected abstract ICeasableFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count) where R : class, ResObj;
 
         protected void GoToFrame(LinkedStack<Frame> frameStack)
         {
@@ -153,7 +153,7 @@ namespace FourZeroOne.Runtime
                 if (argAmount == 0 || (_resolutionStack.Check(out var resolutionNode) && resolutionNode.Depth == operationNode.Depth + 1))
                 {
                     var argPass = new Resolved[argAmount];
-                    for (int i = argAmount; i >= 0; i--)
+                    for (int i = argAmount - 1; i >= 0; i--)
                     {
                         argPass[i] = PopFromStack(ref _resolutionStack).Value;
                     }

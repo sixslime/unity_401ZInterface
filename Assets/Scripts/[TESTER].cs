@@ -72,11 +72,8 @@ public class TESTER : MonoBehaviour
             Variables = new(7),
             Board = new() { }
         };
-        /*
-        _runtime = new FourZeroOne.Runtimes.FrameSaving.Gebug(startState, token_tutorial_1, new GameObject());
+        _runtime = new FourZeroOne.Runtimes.FrameSaving.Gebug(startState, token_tutorial_3, new GameObject());
         await _runtime.Run();
-        */
-        var o = ControlledFlow.Resolved(6);
         UnityEditor.EditorApplication.ExitPlaymode();
         /*
         while ((await new t.IO.Select.One<r.Bool>(new t.Multi.Union<r.Bool>(Iter.Over(true, false).Map(x => new t.Multi.Yield<r.Bool>(new t.Fixed<r.Bool>(x))))).Resolve(_runtime)).Unwrap().IsTrue)

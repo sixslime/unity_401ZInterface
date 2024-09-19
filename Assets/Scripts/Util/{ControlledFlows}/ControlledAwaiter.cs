@@ -29,6 +29,7 @@ namespace ControlledFlows
         public bool IsCompleted => _completed;
         private Action _continueAction;
 
+        private static void DoFuckingNothing() { }
         public ControlledAwaiter()
         {
             _completed = false;
@@ -36,6 +37,8 @@ namespace ControlledFlows
         public void Resolve()
         {
             Cease();
+            //this is fucking stupid, i hate this, i want to die, why cant i do anything right
+            _continueAction ??= DoFuckingNothing;
             _continueAction();
         }
         public void Cease()

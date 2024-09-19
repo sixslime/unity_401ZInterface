@@ -46,14 +46,14 @@ namespace FourZeroOne.Runtimes.FrameSaving
             depth++;
         }
 
-        protected override ControlledFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count)
+        protected override ICeasableFlow<IOption<IEnumerable<R>>> SelectionImplementation<R>(IEnumerable<R> from, int count)
         {
-            throw new System.NotImplementedException();
+            return _world.SelectionLogic(from, count);
         }
 
         private class World : MonoBehaviour
         {
-            private ICeasableFlow<IOption<List<R>>> SelectionLogic<R>(IEnumerable<R> outOf, int count)
+            public ICeasableFlow<IOption<List<R>>> SelectionLogic<R>(IEnumerable<R> outOf, int count)
             {
                 var o = new List<R>(count);
                 if (0 >= count) return ControlledFlow.Resolved(new None<List<R>>());
@@ -88,8 +88,8 @@ namespace FourZeroOne.Runtimes.FrameSaving
                 void __Exit()
                 {
                     foreach (var (visual, _) in options) Destroy(visual.gameObject);
-                    input.Disable();
-                    input.Dispose();
+                    //input.Disable();
+                    //input.Dispose();
                 }
                 void __Left()
                 {
