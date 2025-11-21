@@ -1,1 +1,1 @@
-> Predecessor to [Zerox](github.com/sixslime/zerox)
+> Predecessor to [Zerox](https://www.github.com/sixslime/zerox)
